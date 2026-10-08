@@ -1,6 +1,7 @@
 // Bulk URL status check — Vercel serverless function.
 // POST /api/check  { urls: ["https://...", ...] }  (max 15 per call; client batches)
 // Server-side requests = no CORS issues, same model as httpstatus.io.
+// v1.0.1
 
 const UA =
   'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36';
