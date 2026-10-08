@@ -1,0 +1,243 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Bulk URL Status Checker</title>
+<style>
+  :root{
+    --bg:#f6f8fb; --card:#ffffff; --text:#1a2230; --muted:#64748b; --border:#e2e8f0;
+    --green:#16a34a; --green-bg:#dcfce7; --amber:#b45309; --amber-bg:#fef3c7;
+    --red:#dc2626; --red-bg:#fee2e2; --grey:#475569; --grey-bg:#e2e8f0;
+    --accent:#2563eb;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;background:var(--bg);color:var(--text)}
+  .wrap{max-width:980px;margin:0 auto;padding:28px 16px 60px}
+  h1{font-size:26px;margin:0 0 4px}
+  .sub{color:var(--muted);margin:0 0 20px;font-size:14px}
+  .card{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:18px;margin-bottom:16px;box-shadow:0 1px 2px rgba(15,23,42,.04)}
+  textarea{width:100%;min-height:150px;resize:vertical;border:1px solid var(--border);border-radius:8px;padding:12px;font-size:14px;font-family:ui-monospace,Menlo,Consolas,monospace;line-height:1.5}
+  textarea:focus{outline:2px solid var(--accent);outline-offset:-1px;border-color:var(--accent)}
+  .row{display:flex;gap:10px;align-items:center;margin-top:12px;flex-wrap:wrap}
+  button{cursor:pointer;border:0;border-radius:8px;font-size:14px;font-weight:600;padding:10px 18px}
+  .primary{background:var(--accent);color:#fff}
+  .primary:disabled{opacity:.55;cursor:default}
+  .ghost{background:var(--grey-bg);color:var(--text)}
+  .counter{margin-left:auto;color:var(--muted);font-size:13px}
+  .progress{height:8px;background:var(--grey-bg);border-radius:99px;overflow:hidden;margin-top:12px;display:none}
+  .progress>div{height:100%;width:0;background:var(--accent);transition:width .25s}
+  .ptext{font-size:13px;color:var(--muted);margin-top:8px;display:none}
+  .chips{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:16px}
+  .chip{background:var(--card);border:1px solid var(--border);border-radius:10px;padding:10px 16px;font-size:13px;color:var(--muted)}
+  .chip b{display:block;font-size:22px;color:var(--text)}
+  .filters{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px}
+  .filters button{background:var(--card);border:1px solid var(--border);color:var(--text);padding:7px 14px;font-weight:500}
+  .filters button.active{background:var(--text);color:#fff;border-color:var(--text)}
+  table{width:100%;border-collapse:collapse;font-size:13px}
+  th{text-align:left;padding:10px 12px;color:var(--muted);font-weight:600;border-bottom:2px solid var(--border);white-space:nowrap}
+  td{padding:10px 12px;border-bottom:1px solid var(--border);vertical-align:top}
+  tr:hover td{background:#f8fafc}
+  .url{font-family:ui-monospace,Menlo,Consolas,monospace;word-break:break-all;max-width:340px}
+  .pill{display:inline-block;padding:3px 10px;border-radius:99px;font-weight:700;font-size:12px;white-space:nowrap}
+  .p2{background:var(--green-bg);color:var(--green)} .p3{background:var(--amber-bg);color:var(--amber)}
+  .p404{background:var(--red-bg);color:var(--red)} .p4{background:#ffedd5;color:#c2410c}
+  .p5{background:var(--red-bg);color:var(--red)} .perr{background:var(--grey-bg);color:var(--grey)}
+  .pver{background:#e0e7ff;color:#4338ca}
+  .ms{color:var(--muted);white-space:nowrap}
+  .chain{font-size:12px;color:var(--muted);margin-top:6px;display:none;font-family:ui-monospace,Menlo,Consolas,monospace}
+  .chain.open{display:block}
+  .chain div{padding:2px 0;word-break:break-all}
+  .toggle{color:var(--accent);background:none;padding:0;font-size:12px;font-weight:600}
+  .note{font-size:12px;color:var(--muted);margin-top:4px}
+  .empty{text-align:center;color:var(--muted);padding:40px 10px}
+  .toolbar{display:flex;gap:10px;margin-bottom:12px;flex-wrap:wrap}
+  .foot{color:var(--muted);font-size:12px;text-align:center;margin-top:28px}
+  @media(max-width:640px){ .url{max-width:200px} th:nth-child(4),td:nth-child(4){display:none} }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>Bulk URL Status Checker</h1>
+  <p class="sub">Paste up to 100 URLs — find which ones are 404, redirected, or dead. Checks run from the server, so bot-blocked pages are flagged honestly instead of misreported.</p>
+
+  <div class="card">
+    <textarea id="input" placeholder="https://example.com/page-1&#10;https://example.com/page-2&#10;…one URL per line (https:// is optional)"></textarea>
+    <div class="row">
+      <button class="primary" id="checkBtn">Check statuses</button>
+      <button class="ghost" id="clearBtn">Clear</button>
+      <span class="counter"><span id="count">0</span> / 100 URLs</span>
+    </div>
+    <div class="progress" id="progress"><div id="bar"></div></div>
+    <div class="ptext" id="ptext"></div>
+  </div>
+
+  <div id="results" style="display:none">
+    <div class="chips" id="chips"></div>
+    <div class="toolbar">
+      <div class="filters" id="filters">
+        <button data-f="all" class="active">All</button>
+        <button data-f="ok">OK (2xx)</button>
+        <button data-f="redir">Redirects (3xx)</button>
+        <button data-f="404">404s</button>
+        <button data-f="err">Other errors</button>
+        <button data-f="ver">Needs verify</button>
+      </div>
+      <div style="margin-left:auto;display:flex;gap:10px">
+        <button class="ghost" id="copy404">Copy 404s</button>
+        <button class="ghost" id="csvBtn">Download CSV</button>
+      </div>
+    </div>
+    <div class="card" style="padding:6px 6px">
+      <div style="overflow-x:auto">
+      <table>
+        <thead><tr><th>URL</th><th>Status</th><th>Final URL</th><th>Time</th><th></th></tr></thead>
+        <tbody id="tbody"></tbody>
+      </table>
+      </div>
+    </div>
+  </div>
+
+  <p class="foot">Free tool · checks run server-side · nothing you paste is stored</p>
+</div>
+
+<script>
+const BATCH = 15, MAXURLS = 100;
+const input = document.getElementById('input');
+const checkBtn = document.getElementById('checkBtn');
+const tbody = document.getElementById('tbody');
+let all = [], filter = 'all';
+
+function parseUrls(){
+  const seen = new Set(), out = [];
+  for (const line of input.value.split('\n')){
+    const u = line.trim().replace(/^["']+|["']+$/g,'');
+    if (!u || u.startsWith('#') || seen.has(u)) continue;
+    seen.add(u); out.push(u);
+    if (out.length >= MAXURLS) break;
+  }
+  return out;
+}
+input.addEventListener('input', () => {
+  document.getElementById('count').textContent = parseUrls().length;
+});
+
+function cat(r){
+  if (r.blocked || r.note) return 'ver';
+  if (r.error || r.status === null) return 'err';
+  if (r.status === 404) return '404';
+  if (r.status >= 200 && r.status < 300) return 'ok';
+  if (r.status >= 300 && r.status < 400) return 'redir';
+  return 'err';
+}
+function pill(r){
+  const c = cat(r);
+  if (c === 'ver') return '<span class="pill pver">Needs verify</span>';
+  if (c === 'err') return '<span class="pill perr">' + (r.status || 'Error') + '</span>';
+  if (c === '404') return '<span class="pill p404">404</span>';
+  if (c === 'ok') return '<span class="pill p2">' + r.status + '</span>';
+  if (c === 'redir') return '<span class="pill p3">' + r.status + '</span>';
+  return '<span class="pill p5">' + r.status + '</span>';
+}
+function esc(s){ return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+
+function render(){
+  const rows = all.filter(r => filter === 'all' || cat(r) === filter);
+  if (!rows.length){
+    tbody.innerHTML = '<tr><td colspan="5" class="empty">No results for this filter.</td></tr>';
+    return;
+  }
+  tbody.innerHTML = rows.map((r, i) => {
+    const chain = (r.chain && r.chain.length > 1)
+      ? '<button class="toggle" data-i="'+i+'">show path ('+r.chain.length+' hops)</button><div class="chain" id="ch'+i+'">' +
+        r.chain.map(h => '<div>→ ['+h.status+'] '+esc(h.url)+'</div>').join('') + '</div>'
+      : '';
+    const extra = r.note ? '<div class="note">'+esc(r.note)+'</div>' : (r.error ? '<div class="note">'+esc(r.error)+'</div>' : '');
+    return '<tr><td class="url">'+esc(r.url)+'</td><td>'+pill(r)+extra+'</td>' +
+      '<td class="url">'+esc(r.finalUrl || '—')+'</td>' +
+      '<td class="ms">'+(r.ms!=null? r.ms+' ms' : '—')+'</td><td>'+chain+'</td></tr>';
+  }).join('');
+  tbody.querySelectorAll('.toggle').forEach(b => b.addEventListener('click', () => {
+    const d = document.getElementById('ch'+b.dataset.i);
+    d.classList.toggle('open');
+    b.textContent = d.classList.contains('open') ? 'hide path' : 'show path ('+all.filter(r=>filter==='all'||cat(r)===filter)[b.dataset.i].chain.length+' hops)';
+  }));
+}
+
+function renderChips(){
+  const n = c => all.filter(r => cat(r) === c).length;
+  document.getElementById('chips').innerHTML =
+    chip(all.length,'Total checked') + chip(n('ok'),'OK') + chip(n('redir'),'Redirects') +
+    chip(n('404'),'404 Not Found') + chip(n('err'),'Errors') + chip(n('ver'),'Needs verify');
+}
+function chip(v,l){ return '<div class="chip"><b>'+v+'</b>'+l+'</div>'; }
+
+document.getElementById('filters').addEventListener('click', e => {
+  const b = e.target.closest('button'); if (!b) return;
+  document.querySelectorAll('#filters button').forEach(x => x.classList.remove('active'));
+  b.classList.add('active'); filter = b.dataset.f; render();
+});
+
+document.getElementById('copy404').addEventListener('click', async () => {
+  const urls = all.filter(r => cat(r) === '404').map(r => r.url);
+  if (!urls.length){ alert('No 404s in the results.'); return; }
+  await navigator.clipboard.writeText(urls.join('\n'));
+  alert(urls.length + ' URLs copied.');
+});
+
+document.getElementById('csvBtn').addEventListener('click', () => {
+  const q = s => '"' + String(s==null?'':s).replace(/"/g,'""') + '"';
+  const lines = ['url,status,category,final_url,time_ms,redirect_chain,note'];
+  for (const r of all){
+    lines.push([q(r.url), q(r.status==null?'':r.status), q(cat(r)), q(r.finalUrl||''),
+      q(r.ms==null?'':r.ms),
+      q((r.chain||[]).map(h=>'['+h.status+'] '+h.url).join(' -> ')),
+      q(r.note||r.error||'')].join(','));
+  }
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(new Blob([lines.join('\n')], {type:'text/csv'}));
+  a.download = 'url-status-report.csv'; a.click();
+});
+
+document.getElementById('clearBtn').addEventListener('click', () => {
+  input.value=''; document.getElementById('count').textContent='0';
+  document.getElementById('results').style.display='none'; all=[];
+});
+
+checkBtn.addEventListener('click', async () => {
+  const urls = parseUrls();
+  if (!urls.length){ alert('Paste at least one URL first.'); return; }
+  checkBtn.disabled = true; all = []; filter = 'all';
+  document.querySelectorAll('#filters button').forEach(x => x.classList.toggle('active', x.dataset.f==='all'));
+  const prog = document.getElementById('progress'), bar = document.getElementById('bar'), pt = document.getElementById('ptext');
+  prog.style.display='block'; pt.style.display='block';
+  document.getElementById('results').style.display='none';
+  let done = 0;
+  try {
+    for (let i = 0; i < urls.length; i += BATCH){
+      const batch = urls.slice(i, i + BATCH);
+      pt.textContent = 'Checking URLs ' + (done+1) + '–' + (done+batch.length) + ' of ' + urls.length + '…';
+      const res = await fetch('/api/check', {
+        method:'POST', headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({ urls: batch })
+      });
+      if (!res.ok) throw new Error('Server error ' + res.status);
+      const data = await res.json();
+      all.push(...(data.results || []));
+      done += batch.length;
+      bar.style.width = Math.round(done / urls.length * 100) + '%';
+    }
+    pt.textContent = 'Done — ' + all.length + ' URLs checked.';
+    document.getElementById('results').style.display='block';
+    renderChips(); render();
+  } catch(e){
+    pt.textContent = 'Failed: ' + e.message + (all.length ? ' ('+all.length+' results kept)' : '');
+    if (all.length){ document.getElementById('results').style.display='block'; renderChips(); render(); }
+  } finally {
+    checkBtn.disabled = false;
+    setTimeout(()=>{ prog.style.display='none'; }, 1200);
+  }
+});
+</script>
+</body>
+</html>
