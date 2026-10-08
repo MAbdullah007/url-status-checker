@@ -66,6 +66,23 @@
   .dom .dstat b{color:var(--text)}
   .sec-title{font-size:15px;font-weight:700;margin:0 0 10px}
   .foot{color:var(--muted);font-size:12px;text-align:center;margin-top:28px}
+  .prose h2{font-size:21px;margin:2px 0 12px;letter-spacing:-.01em}
+  .prose h3{font-size:16px;margin:22px 0 10px;display:flex;align-items:center;gap:10px}
+  .prose p{line-height:1.75;font-size:14.5px;color:#334155;margin:0 0 12px}
+  .prose p strong{color:var(--text)}
+  .ticks{list-style:none;margin:0;padding:0}
+  .ticks li{position:relative;padding:0 0 12px 30px;line-height:1.65;font-size:14.5px;color:#334155}
+  .ticks li::before{content:"✓";position:absolute;left:0;top:0;width:20px;height:20px;border-radius:99px;background:var(--green-bg);color:var(--green);font-weight:800;font-size:12px;display:flex;align-items:center;justify-content:center}
+  .ticks li strong{color:var(--text)}
+  .codegroup{border:1px solid var(--border);border-radius:10px;padding:4px 16px 8px;margin:0 0 14px;background:#fbfdff}
+  .codegroup dl{margin:6px 0}
+  .codegroup dl>div{display:flex;gap:12px;padding:9px 0;border-top:1px solid var(--border);align-items:baseline}
+  .codegroup dl>div:first-child{border-top:0}
+  .codegroup dt{font-family:ui-monospace,Menlo,Consolas,monospace;font-weight:700;font-size:13px;min-width:52px;color:var(--text)}
+  .codegroup dd{margin:0;font-size:13.5px;color:#475569;line-height:1.6}
+  .tip{background:var(--amber-bg);border:1px solid #fde68a;border-radius:10px;padding:12px 16px;font-size:13.5px;line-height:1.65;color:#92400e}
+  .tip strong{color:#78350f}
+  .rnum{color:var(--muted);font-size:12px;white-space:nowrap}
   @media(max-width:700px){ .url{max-width:180px} .seotitle{max-width:180px} th:nth-child(5),td:nth-child(5){display:none} }
 </style>
 </head>
@@ -116,11 +133,76 @@
     <div class="card" style="padding:6px">
       <div style="overflow-x:auto">
       <table>
-        <thead><tr><th>Request URL</th><th>Status path</th><th>Final URL</th><th>SEO</th><th>Time</th></tr></thead>
+        <thead><tr><th>#</th><th>Request URL</th><th>Status path</th><th>Final URL</th><th>SEO</th><th>Time</th></tr></thead>
         <tbody id="tbody"></tbody>
       </table>
       </div>
     </div>
+  </div>
+
+  <div class="card prose">
+    <h2>What is the Bulk URL Status Checker?</h2>
+    <p>Paste up to <strong>1,000 URLs</strong> and get every HTTP status code in a single run — which pages are live (200), which have moved (301&nbsp;/&nbsp;302), which are dead (404), and which are hiding behind bot protection. Every live page also reports <strong>SEO signals</strong>: its page title, noindex&nbsp;/&nbsp;nofollow flags, and canonical URL. Results can be searched, filtered, and exported to Excel, Google Sheets, or CSV. The tool is free forever, needs no account, and nothing you paste is ever stored.</p>
+  </div>
+
+  <div class="card prose">
+    <h2>Why it's better than httpstatus.io</h2>
+    <ul class="ticks">
+      <li><strong>SEO signals built in</strong> — page title, meta robots, and canonical URL for every live page. httpstatus.io only shows status codes.</li>
+      <li><strong>Noindex detection</strong> — filter instantly for pages search engines are told to ignore. A backlink on a noindex page is a wasted backlink.</li>
+      <li><strong>Check history</strong> — every run is remembered, and the next check tells you what got fixed and what newly broke.</li>
+      <li><strong>Honest bot-block labeling</strong> — pages behind bot protection are marked <em>Needs verify</em>, never misreported as plain 403s.</li>
+      <li><strong>Issues grouped by domain</strong> — see at a glance which domains need your attention instead of scrolling hundreds of rows.</li>
+      <li><strong>1,000 URLs, free, no signup</strong> — with a gentle mode that paces requests so you don't get rate-limited.</li>
+    </ul>
+  </div>
+
+  <div class="card prose">
+    <h2>HTTP status codes, explained</h2>
+    <p>Every time a browser — or this tool — requests a URL, the server answers with a three-digit <strong>status code</strong>. The first digit tells you the category; the rest give the detail. Here's what the codes you'll meet in your reports actually mean:</p>
+
+    <div class="codegroup">
+      <h3><span class="hop h2">2xx</span> Success — the page is alive</h3>
+      <dl>
+        <div><dt>200</dt><dd><strong>OK</strong> — the page loaded fine. This is what you want for every important URL.</dd></div>
+        <div><dt>201</dt><dd><strong>Created</strong> — a new resource was created. You'll mostly see this on APIs, not web pages.</dd></div>
+        <div><dt>204</dt><dd><strong>No Content</strong> — success, but nothing to show. Rare on normal pages.</dd></div>
+      </dl>
+    </div>
+
+    <div class="codegroup">
+      <h3><span class="hop h3">3xx</span> Redirection — the page moved</h3>
+      <dl>
+        <div><dt>301</dt><dd><strong>Moved Permanently</strong> — the page now lives at a new URL, forever. Link equity passes, so update your links to the final URL.</dd></div>
+        <div><dt>302</dt><dd><strong>Found (temporary)</strong> — a temporary move. Don't use it for permanent moves; search engines keep the old URL indexed.</dd></div>
+        <div><dt>307</dt><dd><strong>Temporary Redirect</strong> — like 302, but preserves the request method. Temporary.</dd></div>
+        <div><dt>308</dt><dd><strong>Permanent Redirect</strong> — like 301, but preserves the request method. Permanent.</dd></div>
+      </dl>
+    </div>
+
+    <div class="codegroup">
+      <h3><span class="hop h404">4xx</span> Client errors — something's wrong with the request or the page</h3>
+      <dl>
+        <div><dt>400</dt><dd><strong>Bad Request</strong> — the URL or request is malformed.</dd></div>
+        <div><dt>401</dt><dd><strong>Unauthorized</strong> — the page needs a login first.</dd></div>
+        <div><dt>403</dt><dd><strong>Forbidden</strong> — the server refuses to answer. Often bot protection rather than a real dead page, which is why this tool double-checks before reporting it.</dd></div>
+        <div><dt>404</dt><dd><strong>Not Found</strong> — the page doesn't exist. Fix the link, redirect it, or remove it.</dd></div>
+        <div><dt>410</dt><dd><strong>Gone</strong> — deliberately removed, permanently. A stronger removal signal than 404; search engines drop it faster.</dd></div>
+        <div><dt>429</dt><dd><strong>Too Many Requests</strong> — you're being rate-limited. Slow down (try Gentle mode) and check again later.</dd></div>
+      </dl>
+    </div>
+
+    <div class="codegroup">
+      <h3><span class="hop h5">5xx</span> Server errors — the website itself is broken</h3>
+      <dl>
+        <div><dt>500</dt><dd><strong>Internal Server Error</strong> — the server crashed handling the request. The site owner's problem to fix.</dd></div>
+        <div><dt>502</dt><dd><strong>Bad Gateway</strong> — the server's upstream service failed.</dd></div>
+        <div><dt>503</dt><dd><strong>Service Unavailable</strong> — temporarily down or overloaded. Worth re-checking later.</dd></div>
+        <div><dt>504</dt><dd><strong>Gateway Timeout</strong> — the upstream server took too long to respond.</dd></div>
+      </dl>
+    </div>
+
+    <p class="tip"><strong>SEO tips:</strong> use <strong>301</strong> (not 302) for permanent moves so rankings transfer; use <strong>410</strong> instead of 404 when a page is deliberately removed so Google drops it faster; and never build links to pages that return <strong>noindex</strong> — use the Noindex filter above to catch them.</p>
   </div>
 
   <p class="foot">Free tool · checks run server-side · nothing you paste is stored</p>
@@ -203,12 +285,12 @@ function visibleRows(){
 function render(){
   const rows = visibleRows();
   if (!rows.length){
-    tbody.innerHTML = '<tr><td colspan="5" class="empty">No results for this filter.</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="6" class="empty">No results for this filter.</td></tr>';
     return;
   }
   tbody.innerHTML = rows.map(r => {
     const extra = r.note ? '<div class="note">' + esc(r.note) + '</div>' : (r.error ? '<div class="note">' + esc(r.error) + '</div>' : '');
-    return '<tr><td class="url">' + esc(r.url) + '</td><td>' + pathChips(r) + extra + '</td>' +
+    return '<tr><td class="rnum">' + r._n + '</td><td class="url">' + esc(r.url) + '</td><td>' + pathChips(r) + extra + '</td>' +
       '<td class="url">' + esc(r.finalUrl || '—') + '</td><td>' + seoCell(r) + '</td>' +
       '<td class="ms">' + (r.ms != null ? r.ms + ' ms' : '—') + '</td></tr>';
   }).join('');
@@ -283,6 +365,7 @@ function rowsForExport(){
 }
 function exportRows(){
   return rowsForExport().map(r => ({
+    'S.No': r._n || '',
     'URL': r.url,
     'Status': r.status === null ? '' : r.status,
     'Category': ({ok:'OK', redir:'Redirect', '404':'404 Not Found', err:'Error', ver:'Needs verify'})[cat(r)] || cat(r),
@@ -383,6 +466,7 @@ checkBtn.addEventListener('click', async () => {
   try {
     await Promise.all(Array.from({length: gentle ? 1 : 3}, worker));
     all = results.filter(Boolean);
+    all.forEach((r, i) => { r._n = i + 1; });
     pt.textContent = 'Done — ' + all.length + ' URLs checked' + (failed ? ' (' + failed + ' batches failed, marked as errors)' : '') + '.';
     document.getElementById('results').style.display='block';
     renderChips(); renderDomains(); renderDiff(); render();
