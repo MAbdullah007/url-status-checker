@@ -122,7 +122,7 @@
         <button data-f="err">Errors</button>
         <button data-f="ver">Needs verify</button>
       </div>
-      <div class="search"><input id="search" placeholder="Search URLs…"></div>
+      <div class="search"><input id="search" placeholder="Search URLs, final URLs, titles…"></div>
       <div class="exports">
         <button class="ghost" id="copy404">Copy 404s</button>
         <button class="ghost" id="sheetBtn" title="Copies tab-separated data — paste straight into Google Sheets">Copy for Sheets</button>
@@ -277,7 +277,12 @@ function visibleRows(){
   return all.filter(r => {
     if (filter === 'noindex'){ if (!isNoindex(r)) return false; }
     else if (filter !== 'all' && cat(r) !== filter) return false;
-    if (searchQ && !r.url.toLowerCase().includes(searchQ)) return false;
+    if (searchQ){
+      // Search across request URL, final URL (after redirects), and page title —
+      // so a mid-slug like "our-team" matches even when it only appears post-redirect.
+      const hay = (r.url + ' ' + (r.finalUrl || '') + ' ' + ((r.seo && r.seo.title) || '')).toLowerCase();
+      if (!hay.includes(searchQ)) return false;
+    }
     return true;
   });
 }
