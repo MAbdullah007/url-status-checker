@@ -22,8 +22,10 @@
   textarea:focus{outline:2px solid var(--blue);outline-offset:-1px;border-color:var(--blue)}
   .row{display:flex;gap:10px;align-items:center;margin-top:12px;flex-wrap:wrap}
   button{cursor:pointer;border:0;border-radius:8px;font-size:14px;font-weight:600;padding:10px 18px}
-  .primary{background:var(--blue);color:#fff}
+  .primary{background:#1d9bf0;color:#fff;font-size:18px;padding:14px 44px;border-radius:8px;letter-spacing:.01em}
+  .primary:hover{background:#1a8cd8}
   .primary:disabled{opacity:.55;cursor:default}
+  .row.center{justify-content:center;margin-top:16px}
   .ghost{background:var(--grey-bg);color:var(--text)}
   .counter{margin-left:auto;color:var(--muted);font-size:13px}
   .gentle{display:flex;align-items:center;gap:6px;font-size:13px;color:var(--muted)}
@@ -93,8 +95,10 @@
 
   <div class="card">
     <textarea id="input" placeholder="https://example.com/page-1&#10;https://example.com/page-2&#10;…one URL per line (https:// is optional)"></textarea>
+    <div class="row center">
+      <button class="primary" id="checkBtn">Check status</button>
+    </div>
     <div class="row">
-      <button class="primary" id="checkBtn">Check statuses</button>
       <button class="ghost" id="clearBtn">Clear</button>
       <label class="gentle" title="Slower checks with pauses between batches — use when checking hundreds of URLs on the same domain to avoid 429 rate limits."><input type="checkbox" id="gentle"> Gentle mode (avoids rate limits)</label>
       <span class="counter"><span id="count">0</span> / 1000 URLs</span>
