@@ -4,94 +4,119 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Bulk URL Status Checker</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <style>
   :root{
     --bg:#f6f8fb; --card:#ffffff; --text:#1a2230; --muted:#64748b; --border:#e2e8f0;
     --green:#16a34a; --green-bg:#dcfce7; --amber:#b45309; --amber-bg:#fef3c7;
-    --red:#dc2626; --red-bg:#fee2e2; --grey:#475569; --grey-bg:#e2e8f0;
-    --accent:#2563eb;
+    --red:#dc2626; --red-bg:#fee2e2; --blue:#2563eb; --blue-bg:#dbeafe;
+    --grey:#475569; --grey-bg:#eef2f7; --violet:#6d28d9; --violet-bg:#ede9fe;
   }
   *{box-sizing:border-box}
   body{margin:0;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;background:var(--bg);color:var(--text)}
-  .wrap{max-width:980px;margin:0 auto;padding:28px 16px 60px}
+  .wrap{max-width:1100px;margin:0 auto;padding:28px 16px 60px}
   h1{font-size:26px;margin:0 0 4px}
   .sub{color:var(--muted);margin:0 0 20px;font-size:14px}
-  .card{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:18px;margin-bottom:16px;box-shadow:0 1px 2px rgba(15,23,42,.04)}
+  .card{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:18px;margin-bottom:16px;box-shadow:0 1px 2px rgba(15,23,42,.05)}
   textarea{width:100%;min-height:150px;resize:vertical;border:1px solid var(--border);border-radius:8px;padding:12px;font-size:14px;font-family:ui-monospace,Menlo,Consolas,monospace;line-height:1.5}
-  textarea:focus{outline:2px solid var(--accent);outline-offset:-1px;border-color:var(--accent)}
+  textarea:focus{outline:2px solid var(--blue);outline-offset:-1px;border-color:var(--blue)}
   .row{display:flex;gap:10px;align-items:center;margin-top:12px;flex-wrap:wrap}
   button{cursor:pointer;border:0;border-radius:8px;font-size:14px;font-weight:600;padding:10px 18px}
-  .primary{background:var(--accent);color:#fff}
+  .primary{background:var(--blue);color:#fff}
   .primary:disabled{opacity:.55;cursor:default}
   .ghost{background:var(--grey-bg);color:var(--text)}
   .counter{margin-left:auto;color:var(--muted);font-size:13px}
+  .gentle{display:flex;align-items:center;gap:6px;font-size:13px;color:var(--muted)}
   .progress{height:8px;background:var(--grey-bg);border-radius:99px;overflow:hidden;margin-top:12px;display:none}
-  .progress>div{height:100%;width:0;background:var(--accent);transition:width .25s}
+  .progress>div{height:100%;width:0;background:var(--blue);transition:width .25s}
   .ptext{font-size:13px;color:var(--muted);margin-top:8px;display:none}
+  .diffbanner{background:var(--blue-bg);border:1px solid #bfdbfe;color:#1e40af;border-radius:10px;padding:10px 16px;font-size:13px;margin-bottom:16px;display:none}
   .chips{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:16px}
-  .chip{background:var(--card);border:1px solid var(--border);border-radius:10px;padding:10px 16px;font-size:13px;color:var(--muted)}
+  .chip{background:var(--card);border:1px solid var(--border);border-radius:10px;padding:10px 16px;font-size:13px;color:var(--muted);min-width:96px}
   .chip b{display:block;font-size:22px;color:var(--text)}
-  .filters{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px}
+  .toolbar{display:flex;gap:10px;margin-bottom:12px;flex-wrap:wrap;align-items:center}
+  .filters{display:flex;gap:8px;flex-wrap:wrap}
   .filters button{background:var(--card);border:1px solid var(--border);color:var(--text);padding:7px 14px;font-weight:500}
   .filters button.active{background:var(--text);color:#fff;border-color:var(--text)}
+  .search{flex:1;min-width:180px;display:flex}
+  .search input{flex:1;border:1px solid var(--border);border-radius:8px;padding:8px 12px;font-size:13px}
+  .exports{display:flex;gap:8px;margin-left:auto;flex-wrap:wrap}
   table{width:100%;border-collapse:collapse;font-size:13px}
   th{text-align:left;padding:10px 12px;color:var(--muted);font-weight:600;border-bottom:2px solid var(--border);white-space:nowrap}
   td{padding:10px 12px;border-bottom:1px solid var(--border);vertical-align:top}
   tr:hover td{background:#f8fafc}
-  .url{font-family:ui-monospace,Menlo,Consolas,monospace;word-break:break-all;max-width:340px}
-  .pill{display:inline-block;padding:3px 10px;border-radius:99px;font-weight:700;font-size:12px;white-space:nowrap}
-  .p2{background:var(--green-bg);color:var(--green)} .p3{background:var(--amber-bg);color:var(--amber)}
-  .p404{background:var(--red-bg);color:var(--red)} .p4{background:#ffedd5;color:#c2410c}
-  .p5{background:var(--red-bg);color:var(--red)} .perr{background:var(--grey-bg);color:var(--grey)}
-  .pver{background:#e0e7ff;color:#4338ca}
-  .ms{color:var(--muted);white-space:nowrap}
-  .chain{font-size:12px;color:var(--muted);margin-top:6px;display:none;font-family:ui-monospace,Menlo,Consolas,monospace}
-  .chain.open{display:block}
-  .chain div{padding:2px 0;word-break:break-all}
-  .toggle{color:var(--accent);background:none;padding:0;font-size:12px;font-weight:600}
+  .url{font-family:ui-monospace,Menlo,Consolas,monospace;word-break:break-all;max-width:300px;font-size:12px}
+  .hop{display:inline-block;padding:2px 9px;border-radius:6px;font-weight:700;font-size:12px;margin:1px 0;white-space:nowrap}
+  .h2{background:var(--green-bg);color:var(--green)} .h3{background:var(--blue-bg);color:var(--blue)}
+  .h404{background:var(--red-bg);color:var(--red)} .h4{background:#ffedd5;color:#c2410c}
+  .h5{background:var(--red-bg);color:var(--red)} .herr{background:var(--grey-bg);color:var(--grey)}
+  .hver{background:var(--violet-bg);color:var(--violet)}
+  .hoparrow{color:var(--muted);font-size:11px;margin:0 3px}
+  .badge{display:inline-block;padding:2px 8px;border-radius:99px;font-size:11px;font-weight:700;margin:2px 4px 2px 0;white-space:nowrap}
+  .b-noindex{background:var(--red-bg);color:var(--red)} .b-nofollow{background:var(--amber-bg);color:var(--amber)}
+  .b-canon{background:var(--grey-bg);color:var(--grey)}
+  .seotitle{font-size:12px;color:var(--muted);margin-bottom:4px;max-width:280px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .ms{color:var(--muted);white-space:nowrap;font-size:12px}
   .note{font-size:12px;color:var(--muted);margin-top:4px}
   .empty{text-align:center;color:var(--muted);padding:40px 10px}
-  .toolbar{display:flex;gap:10px;margin-bottom:12px;flex-wrap:wrap}
+  .domgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:10px}
+  .dom{background:var(--card);border:1px solid var(--border);border-radius:10px;padding:12px 14px;font-size:13px}
+  .dom .dname{font-weight:700;font-family:ui-monospace,Menlo,Consolas,monospace;font-size:12px;word-break:break-all;margin-bottom:6px}
+  .dom .dstat{color:var(--muted)}
+  .dom .dstat b{color:var(--text)}
+  .sec-title{font-size:15px;font-weight:700;margin:0 0 10px}
   .foot{color:var(--muted);font-size:12px;text-align:center;margin-top:28px}
-  @media(max-width:640px){ .url{max-width:200px} th:nth-child(4),td:nth-child(4){display:none} }
+  @media(max-width:700px){ .url{max-width:180px} .seotitle{max-width:180px} th:nth-child(5),td:nth-child(5){display:none} }
 </style>
 </head>
 <body>
 <div class="wrap">
   <h1>Bulk URL Status Checker</h1>
-  <p class="sub">Paste up to 100 URLs — find which ones are 404, redirected, or dead. Checks run from the server, so bot-blocked pages are flagged honestly instead of misreported.</p>
+  <p class="sub">Paste up to 1,000 URLs — status codes, redirect paths, and SEO signals in one go. Bot-blocked pages are flagged honestly instead of misreported.</p>
 
   <div class="card">
     <textarea id="input" placeholder="https://example.com/page-1&#10;https://example.com/page-2&#10;…one URL per line (https:// is optional)"></textarea>
     <div class="row">
       <button class="primary" id="checkBtn">Check statuses</button>
       <button class="ghost" id="clearBtn">Clear</button>
-      <span class="counter"><span id="count">0</span> / 100 URLs</span>
+      <label class="gentle" title="Slower checks with pauses between batches — use when checking hundreds of URLs on the same domain to avoid 429 rate limits."><input type="checkbox" id="gentle"> Gentle mode (avoids rate limits)</label>
+      <span class="counter"><span id="count">0</span> / 1000 URLs</span>
     </div>
     <div class="progress" id="progress"><div id="bar"></div></div>
     <div class="ptext" id="ptext"></div>
   </div>
 
   <div id="results" style="display:none">
+    <div class="diffbanner" id="diffbanner"></div>
     <div class="chips" id="chips"></div>
+
+    <div class="card" id="domcard" style="display:none">
+      <p class="sec-title">Issues by domain</p>
+      <div class="domgrid" id="domgrid"></div>
+    </div>
+
     <div class="toolbar">
       <div class="filters" id="filters">
         <button data-f="all" class="active">All</button>
-        <button data-f="ok">OK (2xx)</button>
-        <button data-f="redir">Redirects (3xx)</button>
+        <button data-f="ok">OK</button>
+        <button data-f="redir">Redirects</button>
         <button data-f="404">404s</button>
-        <button data-f="err">Other errors</button>
+        <button data-f="noindex">Noindex</button>
+        <button data-f="err">Errors</button>
         <button data-f="ver">Needs verify</button>
       </div>
-      <div style="margin-left:auto;display:flex;gap:10px">
+      <div class="search"><input id="search" placeholder="Search URLs…"></div>
+      <div class="exports">
         <button class="ghost" id="copy404">Copy 404s</button>
-        <button class="ghost" id="csvBtn">Download CSV</button>
+        <button class="ghost" id="sheetBtn" title="Copies tab-separated data — paste straight into Google Sheets">Copy for Sheets</button>
+        <button class="ghost" id="xlsxBtn">Excel (.xlsx)</button>
+        <button class="ghost" id="csvBtn">CSV</button>
       </div>
     </div>
-    <div class="card" style="padding:6px 6px">
+    <div class="card" style="padding:6px">
       <div style="overflow-x:auto">
       <table>
-        <thead><tr><th>URL</th><th>Status</th><th>Final URL</th><th>Time</th><th></th></tr></thead>
+        <thead><tr><th>Request URL</th><th>Status path</th><th>Final URL</th><th>SEO</th><th>Time</th></tr></thead>
         <tbody id="tbody"></tbody>
       </table>
       </div>
@@ -102,11 +127,11 @@
 </div>
 
 <script>
-const BATCH = 15, MAXURLS = 100;
+const BATCH = 15, MAXURLS = 1000;
 const input = document.getElementById('input');
 const checkBtn = document.getElementById('checkBtn');
 const tbody = document.getElementById('tbody');
-let all = [], filter = 'all';
+let all = [], filter = 'all', searchQ = '';
 
 function parseUrls(){
   const seen = new Set(), out = [];
@@ -122,6 +147,10 @@ input.addEventListener('input', () => {
   document.getElementById('count').textContent = parseUrls().length;
 });
 
+function isNoindex(r){
+  const rb = (r.seo && r.seo.robots || '') + ' ' + (r.seo && r.seo.xRobotsTag || '');
+  return /noindex/i.test(rb);
+}
 function cat(r){
   if (r.blocked || r.note) return 'ver';
   if (r.error || r.status === null) return 'err';
@@ -130,53 +159,144 @@ function cat(r){
   if (r.status >= 300 && r.status < 400) return 'redir';
   return 'err';
 }
-function pill(r){
-  const c = cat(r);
-  if (c === 'ver') return '<span class="pill pver">Needs verify</span>';
-  if (c === 'err') return '<span class="pill perr">' + (r.status || 'Error') + '</span>';
-  if (c === '404') return '<span class="pill p404">404</span>';
-  if (c === 'ok') return '<span class="pill p2">' + r.status + '</span>';
-  if (c === 'redir') return '<span class="pill p3">' + r.status + '</span>';
-  return '<span class="pill p5">' + r.status + '</span>';
+function hopClass(s){
+  if (s === null || s === undefined) return 'herr';
+  if (s === 404) return 'h404';
+  if (s >= 200 && s < 300) return 'h2';
+  if (s >= 300 && s < 400) return 'h3';
+  if (s >= 400 && s < 500) return 'h4';
+  if (s >= 500) return 'h5';
+  return 'herr';
+}
+function pathChips(r){
+  // Redirect path shown by default, httpstatus-style: 301 → 200
+  if (r.blocked || r.note) return '<span class="hop hver">Needs verify</span>';
+  if (r.error || r.status === null) return '<span class="hop herr">Error</span>';
+  const chain = (r.chain && r.chain.length) ? r.chain : [{url:r.url, status:r.status}];
+  return chain.map(h => '<span class="hop ' + hopClass(h.status) + '" title="' + esc(h.url) + '">' + (h.status === null ? 'ERR' : h.status) + '</span>').join('<span class="hoparrow">→</span>');
+}
+function seoCell(r){
+  if (!r.seo) return '<span class="ms">—</span>';
+  const s = r.seo;
+  let h = '';
+  if (s.title) h += '<div class="seotitle" title="' + esc(s.title) + '">' + esc(s.title) + '</div>';
+  const badges = [];
+  const rb = (s.robots || '') + ' ' + (s.xRobotsTag || '');
+  if (/noindex/i.test(rb)) badges.push('<span class="badge b-noindex">noindex</span>');
+  if (/nofollow/i.test(rb)) badges.push('<span class="badge b-nofollow">nofollow</span>');
+  if (s.canonical) badges.push('<span class="badge b-canon" title="' + esc(s.canonical) + '">canonical</span>');
+  if (!s.title && !badges.length) return '<span class="ms">—</span>';
+  return h + '<div>' + badges.join('') + '</div>';
 }
 function esc(s){ return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+function hostOf(u){ try { return new URL(u.startsWith('http') ? u : 'https://' + u).hostname; } catch { return '(invalid)'; } }
+
+function visibleRows(){
+  return all.filter(r => {
+    if (filter === 'noindex'){ if (!isNoindex(r)) return false; }
+    else if (filter !== 'all' && cat(r) !== filter) return false;
+    if (searchQ && !r.url.toLowerCase().includes(searchQ)) return false;
+    return true;
+  });
+}
 
 function render(){
-  const rows = all.filter(r => filter === 'all' || cat(r) === filter);
+  const rows = visibleRows();
   if (!rows.length){
     tbody.innerHTML = '<tr><td colspan="5" class="empty">No results for this filter.</td></tr>';
     return;
   }
-  tbody.innerHTML = rows.map((r, i) => {
-    const chain = (r.chain && r.chain.length > 1)
-      ? '<button class="toggle" data-i="'+i+'">show path ('+r.chain.length+' hops)</button><div class="chain" id="ch'+i+'">' +
-        r.chain.map(h => '<div>→ ['+h.status+'] '+esc(h.url)+'</div>').join('') + '</div>'
-      : '';
-    const extra = r.note ? '<div class="note">'+esc(r.note)+'</div>' : (r.error ? '<div class="note">'+esc(r.error)+'</div>' : '');
-    return '<tr><td class="url">'+esc(r.url)+'</td><td>'+pill(r)+extra+'</td>' +
-      '<td class="url">'+esc(r.finalUrl || '—')+'</td>' +
-      '<td class="ms">'+(r.ms!=null? r.ms+' ms' : '—')+'</td><td>'+chain+'</td></tr>';
+  tbody.innerHTML = rows.map(r => {
+    const extra = r.note ? '<div class="note">' + esc(r.note) + '</div>' : (r.error ? '<div class="note">' + esc(r.error) + '</div>' : '');
+    return '<tr><td class="url">' + esc(r.url) + '</td><td>' + pathChips(r) + extra + '</td>' +
+      '<td class="url">' + esc(r.finalUrl || '—') + '</td><td>' + seoCell(r) + '</td>' +
+      '<td class="ms">' + (r.ms != null ? r.ms + ' ms' : '—') + '</td></tr>';
   }).join('');
-  tbody.querySelectorAll('.toggle').forEach(b => b.addEventListener('click', () => {
-    const d = document.getElementById('ch'+b.dataset.i);
-    d.classList.toggle('open');
-    b.textContent = d.classList.contains('open') ? 'hide path' : 'show path ('+all.filter(r=>filter==='all'||cat(r)===filter)[b.dataset.i].chain.length+' hops)';
-  }));
 }
 
 function renderChips(){
   const n = c => all.filter(r => cat(r) === c).length;
+  const nx = all.filter(isNoindex).length;
+  const chip = (v,l) => '<div class="chip"><b>' + v + '</b>' + l + '</div>';
   document.getElementById('chips').innerHTML =
-    chip(all.length,'Total checked') + chip(n('ok'),'OK') + chip(n('redir'),'Redirects') +
-    chip(n('404'),'404 Not Found') + chip(n('err'),'Errors') + chip(n('ver'),'Needs verify');
+    chip(all.length,'Checked') + chip(n('ok'),'OK') + chip(n('redir'),'Redirects') +
+    chip(n('404'),'404') + chip(nx,'Noindex') + chip(n('err'),'Errors') + chip(n('ver'),'Needs verify');
 }
-function chip(v,l){ return '<div class="chip"><b>'+v+'</b>'+l+'</div>'; }
+
+function renderDomains(){
+  const g = {};
+  for (const r of all){
+    const h = hostOf(r.url);
+    g[h] = g[h] || {total:0, bad:0};
+    g[h].total++;
+    const c = cat(r);
+    if (c === '404' || c === 'err' || c === 'ver' || isNoindex(r)) g[h].bad++;
+  }
+  const rows = Object.entries(g).filter(([,v]) => v.bad > 0).sort((a,b) => b[1].bad - a[1].bad).slice(0, 12);
+  const card = document.getElementById('domcard');
+  if (!rows.length){ card.style.display = 'none'; return; }
+  card.style.display = 'block';
+  document.getElementById('domgrid').innerHTML = rows.map(([h,v]) =>
+    '<div class="dom"><div class="dname">' + esc(h) + '</div><div class="dstat"><b>' + v.bad + '</b> of ' + v.total + ' URLs need attention</div></div>'
+  ).join('');
+}
+
+function renderDiff(){
+  const banner = document.getElementById('diffbanner');
+  let prev = null;
+  try { prev = JSON.parse(localStorage.getItem('ubs_history_v1') || 'null'); } catch {}
+  if (!prev || !prev.items){ banner.style.display = 'none'; return; }
+  let fixed = 0, broken = 0, same = 0;
+  for (const r of all){
+    const p = prev.items[r.url];
+    if (!p) continue;
+    const wasBad = ['404','err','ver'].includes(p.cat) || p.noindex;
+    const nowBad = ['404','err','ver'].includes(cat(r)) || isNoindex(r);
+    if (wasBad && !nowBad) fixed++;
+    else if (!wasBad && nowBad) broken++;
+    else same++;
+  }
+  const compared = fixed + broken + same;
+  if (!compared){ banner.style.display = 'none'; return; }
+  const d = new Date(prev.date).toLocaleString();
+  banner.style.display = 'block';
+  banner.textContent = 'vs last check (' + d + '): ' + fixed + ' fixed, ' + broken + ' newly broken, ' + same + ' unchanged (' + compared + ' URLs compared).';
+}
+
+function saveHistory(){
+  const items = {};
+  for (const r of all) items[r.url] = {status: r.status, cat: cat(r), noindex: isNoindex(r)};
+  try { localStorage.setItem('ubs_history_v1', JSON.stringify({date: Date.now(), items})); } catch {}
+}
 
 document.getElementById('filters').addEventListener('click', e => {
   const b = e.target.closest('button'); if (!b) return;
   document.querySelectorAll('#filters button').forEach(x => x.classList.remove('active'));
   b.classList.add('active'); filter = b.dataset.f; render();
 });
+document.getElementById('search').addEventListener('input', e => {
+  searchQ = e.target.value.trim().toLowerCase(); render();
+});
+
+function rowsForExport(){
+  return visibleRows().length ? visibleRows() : all;
+}
+function exportRows(){
+  return rowsForExport().map(r => ({
+    'URL': r.url,
+    'Status': r.status === null ? '' : r.status,
+    'Category': ({ok:'OK', redir:'Redirect', '404':'404 Not Found', err:'Error', ver:'Needs verify'})[cat(r)] || cat(r),
+    'Noindex': isNoindex(r) ? 'YES' : '',
+    'Final URL': r.finalUrl || '',
+    'Time (ms)': r.ms === null || r.ms === undefined ? '' : r.ms,
+    'Redirect path': (r.chain || []).map(h => '[' + (h.status === null ? 'ERR' : h.status) + '] ' + h.url).join(' -> '),
+    'Page title': (r.seo && r.seo.title) || '',
+    'Meta robots': (r.seo && r.seo.robots) || '',
+    'X-Robots-Tag': (r.seo && r.seo.xRobotsTag) || '',
+    'Canonical': (r.seo && r.seo.canonical) || '',
+    'Note': r.note || r.error || ''
+  }));
+}
 
 document.getElementById('copy404').addEventListener('click', async () => {
   const urls = all.filter(r => cat(r) === '404').map(r => r.url);
@@ -184,18 +304,33 @@ document.getElementById('copy404').addEventListener('click', async () => {
   await navigator.clipboard.writeText(urls.join('\n'));
   alert(urls.length + ' URLs copied.');
 });
-
+document.getElementById('sheetBtn').addEventListener('click', async () => {
+  // Tab-separated values paste perfectly into Google Sheets (one Ctrl+V).
+  const rows = exportRows();
+  if (!rows.length) return;
+  const keys = Object.keys(rows[0]);
+  const tsv = [keys.join('\t')].concat(rows.map(r => keys.map(k => String(r[k]).replace(/\t/g,' ')).join('\t'))).join('\n');
+  await navigator.clipboard.writeText(tsv);
+  alert(rows.length + ' rows copied — paste straight into Google Sheets (Ctrl+V).');
+});
+document.getElementById('xlsxBtn').addEventListener('click', () => {
+  const rows = exportRows();
+  if (!rows.length) return;
+  if (typeof XLSX === 'undefined'){ alert('Excel library failed to load — use CSV instead.'); return; }
+  const ws = XLSX.utils.json_to_sheet(rows);
+  ws['!cols'] = [{wch:60},{wch:10},{wch:16},{wch:10},{wch:60},{wch:12},{wch:60},{wch:40},{wch:20},{wch:20},{wch:60},{wch:40}];
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, 'Status check');
+  XLSX.writeFile(wb, 'url-status-report.xlsx');
+});
 document.getElementById('csvBtn').addEventListener('click', () => {
-  const q = s => '"' + String(s==null?'':s).replace(/"/g,'""') + '"';
-  const lines = ['url,status,category,final_url,time_ms,redirect_chain,note'];
-  for (const r of all){
-    lines.push([q(r.url), q(r.status==null?'':r.status), q(cat(r)), q(r.finalUrl||''),
-      q(r.ms==null?'':r.ms),
-      q((r.chain||[]).map(h=>'['+h.status+'] '+h.url).join(' -> ')),
-      q(r.note||r.error||'')].join(','));
-  }
+  const rows = exportRows();
+  if (!rows.length) return;
+  const keys = Object.keys(rows[0]);
+  const q = s => '"' + String(s).replace(/"/g,'""') + '"';
+  const csv = [keys.map(q).join(',')].concat(rows.map(r => keys.map(k => q(r[k])).join(','))).join('\n');
   const a = document.createElement('a');
-  a.href = URL.createObjectURL(new Blob([lines.join('\n')], {type:'text/csv'}));
+  a.href = URL.createObjectURL(new Blob([csv], {type:'text/csv'}));
   a.download = 'url-status-report.csv'; a.click();
 });
 
@@ -204,38 +339,59 @@ document.getElementById('clearBtn').addEventListener('click', () => {
   document.getElementById('results').style.display='none'; all=[];
 });
 
+const sleep = ms => new Promise(r => setTimeout(r, ms));
+
 checkBtn.addEventListener('click', async () => {
   const urls = parseUrls();
   if (!urls.length){ alert('Paste at least one URL first.'); return; }
-  checkBtn.disabled = true; all = []; filter = 'all';
+  const gentle = document.getElementById('gentle').checked;
+  checkBtn.disabled = true; all = []; filter = 'all'; searchQ = '';
+  document.getElementById('search').value = '';
   document.querySelectorAll('#filters button').forEach(x => x.classList.toggle('active', x.dataset.f==='all'));
   const prog = document.getElementById('progress'), bar = document.getElementById('bar'), pt = document.getElementById('ptext');
   prog.style.display='block'; pt.style.display='block';
   document.getElementById('results').style.display='none';
-  let done = 0;
-  try {
-    for (let i = 0; i < urls.length; i += BATCH){
-      const batch = urls.slice(i, i + BATCH);
-      pt.textContent = 'Checking URLs ' + (done+1) + '–' + (done+batch.length) + ' of ' + urls.length + '…';
-      const res = await fetch('/api/check', {
-        method:'POST', headers:{'Content-Type':'application/json'},
-        body: JSON.stringify({ urls: batch })
-      });
-      if (!res.ok) throw new Error('Server error ' + res.status);
-      const data = await res.json();
-      all.push(...(data.results || []));
-      done += batch.length;
-      bar.style.width = Math.round(done / urls.length * 100) + '%';
+  document.getElementById('diffbanner').style.display='none';
+
+  const results = new Array(urls.length);
+  let done = 0, failed = 0;
+  const batches = [];
+  for (let i = 0; i < urls.length; i += BATCH) batches.push({i, urls: urls.slice(i, i + BATCH)});
+
+  async function worker(){
+    while (batches.length){
+      const b = batches.shift();
+      try {
+        const res = await fetch('/api/check', {
+          method:'POST', headers:{'Content-Type':'application/json'},
+          body: JSON.stringify({urls: b.urls})
+        });
+        if (!res.ok) throw new Error('Server error ' + res.status);
+        const data = await res.json();
+        (data.results || []).forEach((r, k) => { results[b.i + k] = r; });
+      } catch(e){
+        failed++;
+        b.urls.forEach((u, k) => { results[b.i + k] = {url: u, status: null, error: 'Batch failed: ' + e.message}; });
+      }
+      done += b.urls.length;
+      const pct = Math.round(done / urls.length * 100);
+      bar.style.width = pct + '%';
+      pt.textContent = 'Checking… ' + done + ' / ' + urls.length + ' URLs (' + pct + '%)';
+      if (gentle) await sleep(900);
     }
-    pt.textContent = 'Done — ' + all.length + ' URLs checked.';
+  }
+  try {
+    await Promise.all(Array.from({length: gentle ? 1 : 3}, worker));
+    all = results.filter(Boolean);
+    pt.textContent = 'Done — ' + all.length + ' URLs checked' + (failed ? ' (' + failed + ' batches failed, marked as errors)' : '') + '.';
     document.getElementById('results').style.display='block';
-    renderChips(); render();
+    renderChips(); renderDomains(); renderDiff(); render();
+    saveHistory();
   } catch(e){
-    pt.textContent = 'Failed: ' + e.message + (all.length ? ' ('+all.length+' results kept)' : '');
-    if (all.length){ document.getElementById('results').style.display='block'; renderChips(); render(); }
+    pt.textContent = 'Failed: ' + e.message;
   } finally {
     checkBtn.disabled = false;
-    setTimeout(()=>{ prog.style.display='none'; }, 1200);
+    setTimeout(()=>{ prog.style.display='none'; }, 1500);
   }
 });
 </script>

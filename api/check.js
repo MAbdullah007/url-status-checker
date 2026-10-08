@@ -44,6 +44,51 @@ async function fetchOnce(url, method, headers) {
   }
 }
 
+// Read only the first bytes of an HTML body (enough for <head> SEO tags),
+// then cancel the stream — avoids downloading megabytes per URL.
+async function readHead(res, maxBytes) {
+  maxBytes = maxBytes || 100 * 1024;
+  try {
+    if (!res.body || typeof res.body.getReader !== 'function') return '';
+    const reader = res.body.getReader();
+    const chunks = [];
+    let total = 0;
+    for (;;) {
+      if (total >= maxBytes) break;
+      const step = await reader.read();
+      if (step.done) break;
+      chunks.push(step.value);
+      total += step.value.length;
+    }
+    try { await reader.cancel(); } catch {}
+    const buf = Buffer.concat(chunks.map((c) => Buffer.from(c)));
+    return buf.toString('utf8', 0, Math.min(buf.length, maxBytes));
+  } catch {
+    return '';
+  }
+}
+
+// Lightweight SEO signals from the <head>: page title, meta robots,
+// canonical URL, plus the X-Robots-Tag response header.
+function extractSeo(html, headers) {
+  const end = html.search(/<\/head\s*>/i);
+  const head = end > -1 ? html.slice(0, end) : html;
+  const mTitle = head.match(/<title[^>]*>([\s\S]*?)<\/title\s*>/i);
+  const mRobots = head.match(/<meta[^>]+name\s*=\s*["']robots["'][^>]*>/i);
+  const mCanon = head.match(/<link[^>]+rel\s*=\s*["']canonical["'][^>]*>/i);
+  const pick = (tag, attr) => {
+    if (!tag) return null;
+    const m = tag.match(new RegExp(attr + '\\s*=\\s*["\']([^"\']*)', 'i'));
+    return m ? m[1].trim().slice(0, 300) : null;
+  };
+  return {
+    title: mTitle ? mTitle[1].replace(/\s+/g, ' ').trim().slice(0, 200) : null,
+    robots: pick(mRobots ? mRobots[0] : null, 'content'),
+    canonical: pick(mCanon ? mCanon[0] : null, 'href'),
+    xRobotsTag: headers.get('x-robots-tag'),
+  };
+}
+
 function errName(e) {
   if (e && e.name === 'AbortError') return 'Timeout after ' + TIMEOUT_MS / 1000 + 's';
   const msg = String((e && e.message) || e || 'Request failed');
@@ -68,13 +113,21 @@ async function runStrategy(input, startUrl, strategy, t0) {
         url = new URL(loc, url).toString();
         continue;
       }
-      await res.arrayBuffer().catch(() => {});
+      // For successful HTML pages, grab SEO signals from the <head>.
+      let seo;
+      const ctype = res.headers.get('content-type') || '';
+      if (
+        strategy.method === 'GET' &&
+        res.status >= 200 && res.status < 300 &&
+        ctype.toLowerCase().includes('html')
+      ) {
+        seo = extractSeo(await readHead(res), res.headers);
+      } else {
+        // Non-HTML body: don't download it, just release the socket.
+        try { await res.body?.cancel(); } catch {}
+      }
       const ms = Date.now() - t0;
       const blocked = BLOCKED_STATUSES.has(res.status);
-      // HEAD results are unreliable for 4xx/5xx — escalate to the GET strategy.
-      if (strategy.method === 'HEAD' && res.status >= 400) {
-        return { done: false, chain };
-      }
       return {
         done: true,
         result: {
@@ -84,6 +137,7 @@ async function runStrategy(input, startUrl, strategy, t0) {
           ms,
           chain,
           blocked,
+          seo,
           note: blocked ? 'Needs verify — the site is blocking automated checks' : undefined,
         },
       };
@@ -100,8 +154,6 @@ async function runStrategy(input, startUrl, strategy, t0) {
       },
     };
   } catch (e) {
-    // Network-level failure on HEAD: let the GET strategy have a go.
-    if (strategy.method === 'HEAD') return { done: false, chain };
     return {
       done: true,
       result: {
@@ -122,24 +174,12 @@ async function checkOne(input) {
   if (!startUrl) {
     return { url: String(input), status: null, finalUrl: null, ms: 0, chain: [], error: 'Invalid URL' };
   }
-  const strategies = [
-    { method: 'HEAD', headers: { 'User-Agent': UA } },
-    { method: 'GET', headers: FULL_HEADERS },
-  ];
-  for (const s of strategies) {
-    const out = await runStrategy(input, startUrl, s, t0);
-    if (out.done) return out.result;
-  }
-  // Both strategies refused — never present a guess as the real status.
-  return {
-    url: String(input),
-    status: null,
-    finalUrl: null,
-    ms: Date.now() - t0,
-    chain: [],
-    blocked: true,
-    note: 'Needs verify — the site is blocking automated checks',
-  };
+  // Single browser-grade GET: status + redirect chain + SEO signals in one shot.
+  // (readHead caps HTML downloads at 100KB; non-HTML bodies are cancelled.)
+  const out = await runStrategy(
+    input, startUrl, { method: 'GET', headers: FULL_HEADERS }, t0
+  );
+  return out.result;
 }
 
 export default async function handler(req, res) {
